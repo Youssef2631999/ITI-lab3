@@ -1,13 +1,15 @@
 const express = require('express')
 const fs = require('fs')
 const app = express()
-const port = 3000
+const port = 6000
 const bodyParser = require('body-parser')
 const userRouter = require('./routers/usersRouter')
 const {logRequest} = require('./generalHelpers')
 const { v4: uuidv4 } = require("uuid");
+const { validateUser } = require("./userHelpers");
 
 app.use(bodyParser.json())
+app.use("/users",userRouter)
 /*
 https://www.youtube.com/playlist?list=PLdRrBA8IaU3Xp_qy8X-1u-iqeLlDCmR8a
 Fork the project 
@@ -36,22 +38,7 @@ git commit -m "message"
 git push
 */
 
-app.post("/users", validateUser, async (req, res, next) => {
-  try {
-      const { username, age, password } = req.body;
-      const data = await fs.promises
-          .readFile("./user.json", { encoding: "utf8" })
-          .then((data) => JSON.parse(data));
-      const id = uuidv4();
-      data.push({ id, username, age, password });
-      await fs.promises.writeFile("./user.json", JSON.stringify(data), {
-          encoding: "utf8",
-      });
-      res.send({ id, message: "sucess" });
-  } catch (error) {
-      next({ status: 500, internalMessage: error.message });
-  }
-});
+
 
 app.patch("/users/:userId", validateUser, async (req, res, next) => {
 
@@ -72,7 +59,6 @@ app.get('/users', async (req,res,next)=>{
 
 })
 
-app.use(logRequest)
 
 app.use((err,req,res,next)=>{
 
