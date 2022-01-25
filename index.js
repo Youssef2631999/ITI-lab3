@@ -1,16 +1,32 @@
+require('dotenv').config()
+
 const express = require('express')
 const fs = require('fs')
 const app = express()
-const port = 6000
+const port = 3000
 const bodyParser = require('body-parser')
 const userRouter = require('./routers/usersRouter')
 const {logRequest} = require('./generalHelpers')
 const { v4: uuidv4 } = require("uuid");
 const { validateUser } = require("./userHelpers");
+var jwt = require('jsonwebtoken');
+const serverConfig = require('./serverConfig')
+const { auth } = require('./middlewares/auth')
+const User = require('./models/User')
+require('./mongoConnect')
+
 
 app.use(bodyParser.json())
-app.use("/users",userRouter)
 /*
+The Complete Node.js Developer Course
+NodeJS - The Complete Guide
+
+MongoDb the developer guide
+Javascript the wird parts
+
+javascript.info
+https://www.linkedin.com/in/motazabuelnasr/
+
 https://www.youtube.com/playlist?list=PLdRrBA8IaU3Xp_qy8X-1u-iqeLlDCmR8a
 Fork the project 
 git clone {url}
@@ -32,27 +48,60 @@ Bonus
 Edit patch end point to handle the sent data only
 If age is not sent return all users
 
+Lab 5: 
+user database instead of files
+user jwt to authenticate users after login 
+check if the user delete/patch/get his own document
+check if user who use GET /users is authenticated
+
+
 
 git add .
 git commit -m "message"
 git push
 */
 
+app.post("/users/login", async (req, res, next) => {
+      const {username, password} = req.body
+      const user = await User.findOne({ username })
+      if(!user) return next({status:401, message:"username or passord is incorrect"})
+      if(user.password !== password) next({status:401, message:"username or passord is incorrect"})
+      const payload = {id:user.id }
 
+      return res.status(200).send({message:"Logged in Successfully"}) 
+})
 
-app.patch("/users/:userId", validateUser, async (req, res, next) => {
+app.post("/users", async (req, res, next) => {
+  try {
+      const { username, age, password } = req.body;
+      const user = new User({username, age, password})
+      await user.save()
+      res.send({ message: "sucess" });
+  } catch (error) {
+      next({ status: 422, message: error.message });
+  }
+});
+
+app.patch("/users/:userId", auth , async (req, res, next) => {
+  if(req.user.id!==req.params.userId) next({status:403, message:"Authorization error"})
+  try {
+    const {password, age} = req.body
+    req.user.password = password
+    req.user.age = age
+    await req.user.save()
+    res.send("sucess")
+  } catch (error) {
+
+  }
 
 });
 
 
+
 app.get('/users', async (req,res,next)=>{
   try {
-  const age = Number(req.query.age)
-  const users = await fs.promises
-  .readFile("./user.json", { encoding: "utf8" })
-  .then((data) => JSON.parse(data));
-  const filteredUsers = users.filter(user=>user.age===age)
-  res.send(filteredUsers)
+
+  res.send(users)
   } catch (error) {
   next({ status: 500, internalMessage: error.message });
   }
@@ -61,7 +110,7 @@ app.get('/users', async (req,res,next)=>{
 
 
 app.use((err,req,res,next)=>{
-
+  res.status(err.status).send(err.message)
 })
 
 
@@ -69,3 +118,5 @@ app.use((err,req,res,next)=>{
 app.listen(port, () => {
   console.log(`Example app listening at http://localhost:${port}`)
 })
+
+// mongodb, 
